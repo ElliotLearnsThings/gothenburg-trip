@@ -17,6 +17,20 @@ type HuntState = Record<string, TeamProgress>;
 const emptyState = (): HuntState =>
   Object.fromEntries(teams.map((t) => [t.id, { found: [], startedAt: null, finishedAt: null }]));
 
+/**
+ * Race time. On hunt day everyone starts at the 10:00 kickoff regardless of when
+ * they tapped their team; on a casual replay after hunt day, the team's own
+ * selection time is the start line.
+ */
+function teamTotalMs(p: TeamProgress): number | null {
+  if (p.finishedAt == null) return null;
+  const start =
+    p.startedAt != null && p.startedAt > huntSchedule.endUtcMs
+      ? p.startedAt
+      : huntSchedule.startUtcMs;
+  return p.finishedAt - start;
+}
+
 function formatDuration(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(s / 3600);
@@ -24,16 +38,6 @@ function formatDuration(ms: number): string {
   const sec = s % 60;
   return `${h}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`;
 }
-
-const huntStart = () =>
-  new Date(
-    huntSchedule.start.year,
-    huntSchedule.start.month,
-    huntSchedule.start.day,
-    huntSchedule.start.hour
-  );
-const huntEnd = () =>
-  new Date(huntSchedule.end.year, huntSchedule.end.month, huntSchedule.end.day, huntSchedule.end.hour);
 
 type HuntPhase = "before" | "during" | "after";
 
@@ -48,10 +52,9 @@ function useHuntCountdown(): { phase: HuntPhase; label: string } | null {
     };
     const tick = () => {
       const now = Date.now();
-      const start = huntStart().getTime();
-      const end = huntEnd().getTime();
-      if (now < start) setState({ phase: "before", label: fmt(start - now) });
-      else if (now < end) setState({ phase: "during", label: fmt(end - now) });
+      const { startUtcMs, endUtcMs } = huntSchedule;
+      if (now < startUtcMs) setState({ phase: "before", label: fmt(startUtcMs - now) });
+      else if (now < endUtcMs) setState({ phase: "during", label: fmt(endUtcMs - now) });
       else setState({ phase: "after", label: "00:00:00" });
     };
     tick();
@@ -168,8 +171,9 @@ export default function Home() {
               Pick your duo!
             </h2>
             <p className="mt-2 text-center text-sm text-ink-soft">
-              Hunt in teams of two. Choose your crew — every duo races the same 12 treasures.
-              Fastest team wins!
+              Two duos, one city, {`${stops.length} treasures`}. Choose your crew — kickoff is at{" "}
+              {huntSchedule.startLabel}, and the first team to finish at Liseberg (before{" "}
+              {huntSchedule.endLabel}!) wins.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {teams.map((t) => {
@@ -236,12 +240,12 @@ export default function Home() {
             <p className="mt-3 text-ink-soft">
               All {stops.length} treasures found — first across the finish line at Liseberg!
             </p>
-            {winner.p.startedAt != null && winner.p.finishedAt != null && (
+            {teamTotalMs(winner.p) != null && (
               <p
                 className="mt-4 rounded-2xl border-2 border-dashed border-gold-deep bg-cream px-4 py-3 text-2xl"
                 style={{ fontFamily: "var(--font-hand)", fontWeight: 700 }}
               >
-                ⏱️ Total time: {formatDuration(winner.p.finishedAt - winner.p.startedAt)}
+                ⏱️ Total time: {formatDuration(teamTotalMs(winner.p) as number)}
               </p>
             )}
             <p className="mt-3 text-sm text-ink-soft">
@@ -283,10 +287,51 @@ export default function Home() {
           </span>
         </h1>
         <p className="mx-auto mt-7 max-w-xl text-lg text-ink-soft">
-          {`${stops.length} treasures`} from your doorstep in Örgryte to the lights of Liseberg.
-          Two hunters per team — follow the story, tick off the finds, beat the clock!
+          {`${stops.length} treasures`} from our doorstep in Örgryte to the lights of Liseberg.
+          Two duos, one day — follow the story, tick off the finds, beat the clock!
         </p>
       </header>
+
+      {/* ── How it works — briefing for the crew ───────── */}
+      <section
+        aria-label="How the hunt works"
+        className="pop-in mx-auto mb-8 max-w-2xl"
+        style={{ animationDelay: "0.1s" }}
+      >
+        <div className="rotate-[0.3deg] rounded-3xl border-[3px] border-ink bg-paper-deep px-6 py-5 shadow-[5px_6px_0_rgba(59,47,36,0.25)] sm:px-8 sm:py-6">
+          <h2 className="text-center text-3xl" style={{ fontFamily: "var(--font-display)" }}>
+            📜 How tomorrow works
+          </h2>
+          <ul className="mt-4 grid gap-2.5 text-[15px] leading-relaxed sm:grid-cols-2">
+            <li className="rounded-2xl bg-cream/80 p-3.5">
+              <strong>🕙 Kickoff {huntSchedule.startLabel}</strong> — we all meet at Örgryte Old
+              Church (chapter 1, our doorstep) on {huntSchedule.dayLabel}. The map and clues below
+              stay sealed until then!
+            </li>
+            <li className="rounded-2xl bg-cream/80 p-3.5">
+              <strong>🏁 Deadline 18:00 at Liseberg</strong> — first duo to find all{" "}
+              {`${stops.length} treasures`} wins. Nobody done by 18:00? Most treasures found takes
+              the crown.
+            </li>
+            <li className="rounded-2xl bg-cream/80 p-3.5">
+              <strong>👥 Two duos</strong> — Kanelbulle 🥐 vs Räka 🦐. Pick your team on your own
+              phone; finds save automatically and the scoreboard below tracks both crews.
+            </li>
+            <li className="rounded-2xl bg-cream/80 p-3.5">
+              <strong>🔎 At every stop</strong> — solve the clue, snap a team photo as proof, then
+              tap &quot;Mark as found&quot;. No photo, no treasure!
+            </li>
+            <li className="rounded-2xl bg-cream/80 p-3.5">
+              <strong>⏰ Some museums open ~11</strong> — outdoor treasures (the church, Haga, the
+              graffiti dragon, Feskekôrka) are fair game from kickoff, so plan your route wisely.
+            </li>
+            <li className="rounded-2xl bg-cream/80 p-3.5">
+              <strong>🚋 Trams allowed</strong> — it&apos;s ~12 km on foot; clever tram moves are
+              part of the game. Tickets in the Västtrafik To Go app.
+            </li>
+          </ul>
+        </div>
+      </section>
 
       {/* ── Countdown + teams scoreboard ───────────────── */}
       <section
@@ -301,7 +346,7 @@ export default function Home() {
                 ? "🏁 Reach Liseberg by 18:00 — time left:"
                 : countdown?.phase === "after"
                   ? "🌙 The hunt is over — see you at Liseberg!"
-                  : `⏳ The hunt begins ${huntSchedule.dayLabel} at 08:00`}
+                  : `⏳ The hunt begins ${huntSchedule.dayLabel} at ${huntSchedule.startLabel}`}
             </p>
             <p
               className={`text-4xl tabular-nums sm:text-5xl ${
@@ -350,8 +395,8 @@ export default function Home() {
                         {isWinner && " 👑"}
                       </span>
                       <span className="shrink-0 text-xs text-ink-soft">
-                        {finished && p.startedAt != null && p.finishedAt != null
-                          ? `🏁 ${formatDuration(p.finishedAt - p.startedAt)}`
+                        {finished && teamTotalMs(p) != null
+                          ? `🏁 ${formatDuration(teamTotalMs(p) as number)}`
                           : `${n}/${stops.length}`}
                       </span>
                     </div>
@@ -382,6 +427,36 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Sealed until kickoff / Map + stops ─────────── */}
+      {(countdown?.phase ?? "before") === "before" ? (
+        <section
+          aria-label="The map is sealed"
+          className="pop-in mx-auto max-w-2xl"
+          style={{ animationDelay: "0.3s" }}
+        >
+          <div className="rotate-[-0.4deg] rounded-3xl border-4 border-dashed border-ink bg-cream px-6 py-12 text-center shadow-[6px_8px_0_rgba(59,47,36,0.22)] sm:px-10">
+            <p className="text-6xl">
+              <span className="animate-bob inline-block">🗺️</span>
+              <span className="mx-2 text-5xl">🔒</span>
+            </p>
+            <h2 className="mt-4 text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+              The map is sealed!
+            </h2>
+            <p className="mx-auto mt-4 max-w-md text-ink-soft">
+              {`${stops.length} treasures`} are hidden across Göteborg, but no peeking — the map
+              and all the clues reveal themselves right here when the countdown hits zero at{" "}
+              {huntSchedule.startLabel} on {huntSchedule.dayLabel}.
+            </p>
+            <p
+              className="mt-5 text-2xl text-coral-deep"
+              style={{ fontFamily: "var(--font-hand)", fontWeight: 700 }}
+            >
+              Rest up, hunters — tomorrow we ride (trams). 🚋
+            </p>
+          </div>
+        </section>
+      ) : (
+        <>
       {/* ── Map ────────────────────────────────────────── */}
       <section aria-label="Treasure map" className="pop-in" style={{ animationDelay: "0.3s" }}>
         <div className="rotate-[-0.4deg] drop-shadow-[8px_10px_0_rgba(59,47,36,0.18)]">
@@ -513,6 +588,8 @@ export default function Home() {
           </div>
         </aside>
       </section>
+        </>
+      )}
 
       {/* ── Tips footer ────────────────────────────────── */}
       <footer className="mt-20 rounded-3xl border-[3px] border-ink bg-paper-deep p-7 shadow-[5px_6px_0_rgba(59,47,36,0.22)] sm:p-9">

@@ -41,11 +41,17 @@ export const teams: Team[] = [
   },
 ];
 
-/** Hunt day: Thursday 11 June 2026, 08:00–18:00 local time */
+/**
+ * Hunt day: Thursday 11 June 2026, 10:00–18:00 in Sweden.
+ * Stored as UTC so the timers are correct on any device:
+ * Sweden is CEST (UTC+2) in June → 10:00 local = 08:00 UTC, 18:00 local = 16:00 UTC.
+ */
 export const huntSchedule = {
   dayLabel: "Thursday 11 June",
-  start: { year: 2026, month: 5 /* June (0-based) */, day: 11, hour: 8 },
-  end: { year: 2026, month: 5, day: 11, hour: 18 },
+  startLabel: "10:00",
+  endLabel: "18:00",
+  startUtcMs: Date.UTC(2026, 5, 11, 8, 0, 0),
+  endUtcMs: Date.UTC(2026, 5, 11, 16, 0, 0),
 };
 
 export const stops: Stop[] = [

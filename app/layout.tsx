@@ -23,7 +23,7 @@ const hand = Caveat({
 export const metadata: Metadata = {
   title: "The Gothenburg Treasure Hunt",
   description:
-    "A one-day museum treasure hunt through Göteborg for first-time explorers — eight stops, eight clues, one cute map.",
+    "Two duos, twelve treasures, one day — a museum treasure hunt through Göteborg from our doorstep in Örgryte to the lights of Liseberg.",
 };
 
 export default function RootLayout({
