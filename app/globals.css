@@ -1,26 +1,143 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f9efdc;
+  --paper-deep: #f2e2c4;
+  --ink: #3b2f24;
+  --ink-soft: #6f5d49;
+  --sea: #8fc1cf;
+  --sea-deep: #5e9fb3;
+  --park: #a8c686;
+  --park-deep: #7da45e;
+  --coral: #e2674f;
+  --coral-deep: #c44c36;
+  --gold: #e9b743;
+  --gold-deep: #c99427;
+  --blue: #4a7fa5;
+  --cream: #fffaf0;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-sea: var(--sea);
+  --color-sea-deep: var(--sea-deep);
+  --color-park: var(--park);
+  --color-park-deep: var(--park-deep);
+  --color-coral: var(--coral);
+  --color-coral-deep: var(--coral-deep);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-blue: var(--blue);
+  --color-cream: var(--cream);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-hand: var(--font-hand);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), "Comic Sans MS", cursive;
+  /* subtle paper grain + soft vignette */
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 250, 240, 0.9), transparent 60%),
+    radial-gradient(rgba(59, 47, 36, 0.045) 1px, transparent 1.5px);
+  background-size: 100% 100%, 22px 22px;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
+@keyframes dash-march {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15) rotate(18deg);
+  }
+}
+
+.animate-bob {
+  animation: bob 3.2s ease-in-out infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 2.6s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+.route-march {
+  animation: dash-march 1.6s linear infinite;
+}
+
+.pop-in {
+  animation: pop-in 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+.sparkle {
+  animation: sparkle 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bob,
+  .animate-wiggle,
+  .route-march,
+  .sparkle {
+    animation: none;
+  }
+  .pop-in {
+    animation-duration: 0.01s;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }
