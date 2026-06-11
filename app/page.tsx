@@ -95,6 +95,11 @@ export default function Home() {
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [uploadingStop, setUploadingStop] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<{ stopId: string; message: string } | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<{
+    stopId: string;
+    file: File;
+    previewUrl: string;
+  } | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
   const [creatingTeam, setCreatingTeam] = useState(false);
@@ -251,12 +256,44 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  const onPhotoChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  /** A photo was picked (camera or library) — stage it for confirmation, don't post yet. */
+  const onPhotoChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-selecting the same file after an error
+    e.target.value = ""; // allow re-selecting the same file later
     const stopId = pendingStopRef.current;
     pendingStopRef.current = null;
     if (!file || !stopId || !activeTeamId) return;
+    if (!file.type.startsWith("image/")) {
+      setUploadError({ stopId, message: "That file isn't an image — try again." });
+      return;
+    }
+    setUploadError(null);
+    setPendingPhoto((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return { stopId, file, previewUrl: URL.createObjectURL(file) };
+    });
+  };
+
+  const discardPendingPhoto = () => {
+    setPendingPhoto((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
+  };
+
+  /** Re-open the picker for the same stop. */
+  const retakePendingPhoto = () => {
+    const stopId = pendingPhoto?.stopId;
+    discardPendingPhoto();
+    if (!stopId) return;
+    pendingStopRef.current = stopId;
+    fileInputRef.current?.click();
+  };
+
+  /** User confirmed the preview — now compress, post and (maybe) claim the point. */
+  const confirmSharePhoto = async () => {
+    if (!pendingPhoto || !activeTeamId) return;
+    const { stopId, file } = pendingPhoto;
     setUploadingStop(stopId);
     setUploadError(null);
     try {
@@ -268,8 +305,9 @@ export default function Home() {
       const res = await uploadFindPhoto(fd);
       if (!res.ok || !res.url) {
         setUploadError({ stopId, message: res.error ?? "Upload failed — try again." });
-        return;
+        return; // keep the preview open so they can retry or cancel
       }
+      discardPendingPhoto();
       const url = res.url;
       setPhotos((prev) => ({
         ...prev,
@@ -341,17 +379,85 @@ export default function Home() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 sm:px-8">
-      {/* hidden camera input for proof photos */}
+      {/* hidden photo input — no `capture` attr, so phones offer BOTH camera and photo library */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         aria-hidden="true"
         tabIndex={-1}
         onChange={onPhotoChosen}
       />
+
+      {/* ── Photo preview: confirm before posting ──────── */}
+      {pendingPhoto &&
+        (() => {
+          const stop = stops.find((s) => s.id === pendingPhoto.stopId);
+          const isPosting = uploadingStop === pendingPhoto.stopId;
+          return (
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-ink/70 p-4 backdrop-blur-sm"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm photo before sharing"
+            >
+              <div className="pop-in my-8 w-full max-w-md rounded-3xl border-4 border-ink bg-paper p-6 text-center shadow-[8px_10px_0_rgba(59,47,36,0.4)]">
+                <h2 className="text-3xl" style={{ fontFamily: "var(--font-display)" }}>
+                  📸 Ok to share?
+                </h2>
+                <p className="mt-2 text-sm text-ink-soft">
+                  This photo will be posted to {activeTeam?.emoji} {activeTeam?.name}&apos;s album
+                  for everyone to see{stop ? ` — and could claim the point at ${stop.emoji} ${stop.name}!` : "."}
+                </p>
+                {/* polaroid preview */}
+                <div className="mx-auto mt-4 w-fit rotate-[-1.5deg] rounded-xl border-[3px] border-ink bg-cream p-2 pb-6 shadow-[4px_5px_0_rgba(59,47,36,0.25)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={pendingPhoto.previewUrl}
+                    alt="Preview of your proof photo"
+                    className="max-h-[45vh] w-auto max-w-full rounded-lg object-contain"
+                  />
+                </div>
+                {uploadError?.stopId === pendingPhoto.stopId && (
+                  <p className="mt-3 text-sm font-bold text-coral-deep" role="alert">
+                    ⚠️ {uploadError.message}
+                  </p>
+                )}
+                <div className="mt-5 grid gap-2">
+                  <button
+                    type="button"
+                    onClick={confirmSharePhoto}
+                    disabled={isPosting}
+                    className={`w-full rounded-full border-[3px] border-ink bg-gold px-4 py-2.5 font-bold shadow-[3px_4px_0_rgba(59,47,36,0.3)] ${
+                      isPosting
+                        ? "cursor-wait opacity-70"
+                        : "cursor-pointer hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none"
+                    }`}
+                  >
+                    {isPosting ? "📤 Posting…" : "✅ Share it — go for the point!"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={retakePendingPhoto}
+                    disabled={isPosting}
+                    className="w-full cursor-pointer rounded-full border-[3px] border-ink bg-cream px-4 py-2.5 font-bold hover:bg-paper-deep disabled:cursor-wait disabled:opacity-70"
+                  >
+                    📷 Choose another
+                  </button>
+                  <button
+                    type="button"
+                    onClick={discardPendingPhoto}
+                    disabled={isPosting}
+                    className="w-full cursor-pointer rounded-full border-2 border-ink/30 px-4 py-2 text-sm text-ink-soft hover:bg-cream disabled:cursor-wait disabled:opacity-70"
+                  >
+                    Cancel — nothing is posted
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* ── Toasts: live hunt updates ──────────────────── */}
       <div
