@@ -16,6 +16,14 @@ export type Stop = {
   mapY: number;
 };
 
+export type StoredPhoto = {
+  url: string;
+  uploadedAt: number;
+};
+
+/** photos per team, keyed by stop id */
+export type HuntPhotos = Record<string, Record<string, StoredPhoto>>;
+
 export type Team = {
   id: string;
   name: string;
@@ -24,34 +32,53 @@ export type Team = {
   tagline: string;
 };
 
-export const teams: Team[] = [
+export type HuntEvent = {
+  id: string;
+  teamId: string;
+  message: string;
+  at: number;
+};
+
+/** a stop claimed by the first team to photograph it */
+export type Claim = {
+  teamId: string;
+  at: number;
+};
+
+export type HuntClaims = Record<string, Claim>;
+
+export const MAX_TEAMS = 4;
+
+/** look & feel assigned to teams in creation order */
+export const teamFlavors = [
+  { emoji: "🥐", color: "var(--gold)", tagline: "powered by cinnamon, slowed by fika" },
+  { emoji: "🦐", color: "var(--coral)", tagline: "small, fast, suspiciously good at harbors" },
+  { emoji: "🫎", color: "var(--park-deep)", tagline: "majestic, unhurried, always finds the forest" },
+  { emoji: "🐟", color: "var(--sea-deep)", tagline: "slippery competitors, strong Feskekôrka energy" },
+] as const;
+
+/** the hunt starts with one team; more are created from the team selector (max 4) */
+export const defaultTeams: Team[] = [
   {
     id: "kanelbulle",
     name: "Team Kanelbulle",
-    emoji: "🥐",
-    color: "var(--gold)",
-    tagline: "powered by cinnamon, slowed by fika",
-  },
-  {
-    id: "raka",
-    name: "Team Räka",
-    emoji: "🦐",
-    color: "var(--coral)",
-    tagline: "small, fast, suspiciously good at harbors",
+    emoji: teamFlavors[0].emoji,
+    color: teamFlavors[0].color,
+    tagline: teamFlavors[0].tagline,
   },
 ];
 
 /**
- * Hunt day: Thursday 11 June 2026, 10:00–18:00 in Sweden.
+ * Hunt day: Saturday 13 June 2026, 10:00–18:00 in Sweden.
  * Stored as UTC so the timers are correct on any device:
  * Sweden is CEST (UTC+2) in June → 10:00 local = 08:00 UTC, 18:00 local = 16:00 UTC.
  */
 export const huntSchedule = {
-  dayLabel: "Thursday 11 June",
+  dayLabel: "Saturday 13 June",
   startLabel: "10:00",
   endLabel: "18:00",
-  startUtcMs: Date.UTC(2026, 5, 11, 8, 0, 0),
-  endUtcMs: Date.UTC(2026, 5, 11, 16, 0, 0),
+  startUtcMs: Date.UTC(2026, 5, 13, 8, 0, 0),
+  endUtcMs: Date.UTC(2026, 5, 13, 16, 0, 0),
 };
 
 export const stops: Stop[] = [
