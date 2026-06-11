@@ -235,6 +235,7 @@ export default function Home() {
 
   /** Marking a fresh find requires a proof photo; un-marking and re-marking don't. */
   const requestFound = (stopId: string) => {
+    if (phase === "after") return; // points are locked once the hunt is over
     if (!activeTeamId) {
       setSelectorOpen(true);
       return;
@@ -929,10 +930,14 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => requestFound(stop.id)}
-                      disabled={uploadingStop !== null}
+                      disabled={uploadingStop !== null || phase === "after"}
                       aria-pressed={isFound}
                       className={`mt-5 w-full rounded-full border-[3px] border-ink px-4 py-2.5 text-base font-bold transition-all duration-200 active:translate-y-0.5 active:shadow-none ${
-                        uploadingStop !== null ? "cursor-wait opacity-70" : "cursor-pointer"
+                        phase === "after"
+                          ? "cursor-not-allowed opacity-60"
+                          : uploadingStop !== null
+                            ? "cursor-wait opacity-70"
+                            : "cursor-pointer"
                       } ${
                         isFound
                           ? "bg-park-deep text-cream shadow-[3px_4px_0_rgba(59,47,36,0.3)]"
@@ -943,11 +948,13 @@ export default function Home() {
                         ? "📤 Saving proof photo…"
                         : isFound
                           ? "⭐ Treasure found!"
-                          : activeTeam
-                            ? activeTeamId && photos[activeTeamId]?.[stop.id]
-                              ? `Mark as found for ${activeTeam.emoji} ${activeTeam.name}`
-                              : `📸 Snap proof & mark found (${activeTeam.emoji} ${activeTeam.name})`
-                            : "Pick a team to start"}
+                          : phase === "after"
+                            ? "🌙 Hunt over — points locked"
+                            : activeTeam
+                              ? activeTeamId && photos[activeTeamId]?.[stop.id]
+                                ? `Mark as found for ${activeTeam.emoji} ${activeTeam.name}`
+                                : `📸 Snap proof & mark found (${activeTeam.emoji} ${activeTeam.name})`
+                              : "Pick a team to start"}
                     </button>
                   </li>
                 );

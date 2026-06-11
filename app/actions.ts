@@ -5,6 +5,7 @@ import { createClient } from "@vercel/kv";
 import sharp from "sharp";
 import {
   defaultTeams,
+  huntSchedule,
   MAX_TEAMS,
   stops,
   teamFlavors,
@@ -35,6 +36,15 @@ const memoryClaims = new Map<string, HuntClaims>();
 /** Hunt-local date (Europe/Stockholm), e.g. "2026-06-13" — part of every KV key. */
 function stockholmDate(): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date());
+}
+
+const huntDay = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(
+  new Date(huntSchedule.startUtcMs)
+);
+
+/** On hunt day, points are locked once the 18:00 whistle blows. */
+function pointsLocked(): boolean {
+  return stockholmDate() === huntDay && Date.now() > huntSchedule.endUtcMs;
 }
 
 const albumKey = (teamId: string) => `photos:${teamId}:${stockholmDate()}`;
@@ -185,6 +195,9 @@ export async function uploadFindPhoto(formData: FormData): Promise<{
   const teamId = formData.get("teamId");
   const stopId = formData.get("stopId");
 
+  if (pointsLocked()) {
+    return { ok: false, error: "The hunt is over — points are locked! 🌙" };
+  }
   if (!(file instanceof File) || typeof teamId !== "string" || typeof stopId !== "string") {
     return { ok: false, error: "Missing photo, team or stop." };
   }
